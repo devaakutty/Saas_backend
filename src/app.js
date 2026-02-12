@@ -101,7 +101,7 @@ app.get("/api/health", (req, res) => {
 /* ================== ROOT ================== */
 app.get("/", (req, res) => {
   res.json({
-    status: "Backend running 🚀",
+    status: "Backend running 🚀 go ",
   });
 });
 
