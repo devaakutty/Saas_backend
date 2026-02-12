@@ -1,0 +1,196 @@
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import User from "../models/User.js";
+import Account from "../models/Account.js";
+
+/* =====================================================
+   HELPER: GENERATE JWT
+===================================================== */
+
+const generateToken = (id) => {
+  if (!process.env.JWT_SECRET) {
+    throw new Error("JWT_SECRET not defined");
+  }
+
+  return jwt.sign({ id }, process.env.JWT_SECRET, {
+    expiresIn: "1d",
+  });
+};
+
+/* =====================================================
+   HELPER: COOKIE OPTIONS (AUTO DETECT HTTPS)
+===================================================== */
+
+const getCookieOptions = (req) => {
+  const origin = req.headers.origin || "";
+  const isHttps =
+    origin.startsWith("https://") ||
+    req.headers["x-forwarded-proto"] === "https";
+
+  return {
+    httpOnly: true,
+    secure: isHttps,                 // 🔥 true for Vercel
+    sameSite: isHttps ? "none" : "lax",
+    maxAge: 24 * 60 * 60 * 1000,     // 1 day
+  };
+};
+
+/* =====================================================
+   REGISTER
+===================================================== */
+
+export const register = async (req, res) => {
+  try {
+    const { email, password, firstName, lastName } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({
+        message: "Email and password required",
+      });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    /* ===== CHECK EXISTING USER ===== */
+
+    const existingUser = await User.findOne({
+      email: normalizedEmail,
+    });
+
+    if (existingUser) {
+      return res.status(400).json({
+        message: "User already exists",
+      });
+    }
+
+    /* ===== HASH PASSWORD ===== */
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    /* ===== CREATE USER ===== */
+
+    const user = await User.create({
+      email: normalizedEmail,
+      password: hashedPassword,
+      firstName: firstName || "",
+      lastName: lastName || "",
+      role: "owner",
+    });
+
+    /* ===== CREATE ACCOUNT ===== */
+
+    const account = await Account.create({
+      ownerId: user._id,
+      plan: "starter",
+      userLimit: 1,
+    });
+
+    /* ===== LINK ACCOUNT ===== */
+
+    user.accountId = account._id;
+    await user.save();
+
+    /* ===== GENERATE TOKEN ===== */
+
+    const token = generateToken(user._id);
+
+    /* ===== SET COOKIE ===== */
+
+    res.cookie("token", token, getCookieOptions(req));
+
+    return res.status(201).json({
+      message: "Registered successfully",
+      user: {
+        id: user._id,
+        email: user.email,
+        role: user.role,
+        plan: account.plan,
+      },
+    });
+
+  } catch (err) {
+    console.error("REGISTER ERROR:", err);
+
+    return res.status(500).json({
+      message: "Registration failed",
+    });
+  }
+};
+
+/* =====================================================
+   LOGIN
+===================================================== */
+
+export const login = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({
+        message: "Email and password required",
+      });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    const user = await User.findOne({
+      email: normalizedEmail,
+    }).populate("accountId");
+
+    if (!user) {
+      return res.status(401).json({
+        message: "Invalid email or password",
+      });
+    }
+
+    const isMatch = await bcrypt.compare(
+      password,
+      user.password
+    );
+
+    if (!isMatch) {
+      return res.status(401).json({
+        message: "Invalid email or password",
+      });
+    }
+
+    const token = generateToken(user._id);
+
+    /* ===== SET COOKIE ===== */
+
+    res.cookie("token", token, getCookieOptions(req));
+
+    return res.status(200).json({
+      message: "Login successful",
+      user: {
+        id: user._id,
+        email: user.email,
+        role: user.role,
+        plan: user.accountId?.plan,
+      },
+    });
+
+  } catch (err) {
+    console.error("LOGIN ERROR:", err);
+
+    return res.status(500).json({
+      message: "Login failed",
+    });
+  }
+};
+
+/* =====================================================
+   LOGOUT
+===================================================== */
+
+export const logout = (req, res) => {
+  res.clearCookie("token", {
+    httpOnly: true,
+    secure: true,
+    sameSite: "none",
+  });
+
+  res.json({
+    message: "Logged out successfully",
+  });
+};
