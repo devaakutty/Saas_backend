@@ -21,13 +21,15 @@ const generateToken = (id) => {
    HELPER: COOKIE OPTIONS (PRODUCTION SAFE)
 ===================================================== */
 
-// 🔥 ALWAYS use secure + sameSite none for Vercel cross-domain
-const cookieOptions = {
-  httpOnly: true,
-  secure: true,          // required for HTTPS (Vercel)
-  sameSite: "none",      // required for cross-site cookies
-  maxAge: 24 * 60 * 60 * 1000, // 1 day
-};
+  const isProduction = process.env.NODE_ENV === "production";
+
+  const cookieOptions = {
+    httpOnly: true,
+    secure: isProduction,              // secure only in production
+    sameSite: isProduction ? "none" : "lax",
+    maxAge: 24 * 60 * 60 * 1000,
+  };
+
 
 /* =====================================================
    REGISTER
