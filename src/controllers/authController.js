@@ -18,21 +18,15 @@ const generateToken = (id) => {
 };
 
 /* =====================================================
-   HELPER: COOKIE OPTIONS (AUTO DETECT HTTPS)
+   HELPER: COOKIE OPTIONS (PRODUCTION SAFE)
 ===================================================== */
 
-const getCookieOptions = (req) => {
-  const origin = req.headers.origin || "";
-  const isHttps =
-    origin.startsWith("https://") ||
-    req.headers["x-forwarded-proto"] === "https";
-
-  return {
-    httpOnly: true,
-    secure: isHttps,                 // 🔥 true for Vercel
-    sameSite: isHttps ? "none" : "lax",
-    maxAge: 24 * 60 * 60 * 1000,     // 1 day
-  };
+// 🔥 ALWAYS use secure + sameSite none for Vercel cross-domain
+const cookieOptions = {
+  httpOnly: true,
+  secure: true,          // required for HTTPS (Vercel)
+  sameSite: "none",      // required for cross-site cookies
+  maxAge: 24 * 60 * 60 * 1000, // 1 day
 };
 
 /* =====================================================
@@ -51,8 +45,6 @@ export const register = async (req, res) => {
 
     const normalizedEmail = email.trim().toLowerCase();
 
-    /* ===== CHECK EXISTING USER ===== */
-
     const existingUser = await User.findOne({
       email: normalizedEmail,
     });
@@ -63,11 +55,7 @@ export const register = async (req, res) => {
       });
     }
 
-    /* ===== HASH PASSWORD ===== */
-
     const hashedPassword = await bcrypt.hash(password, 10);
-
-    /* ===== CREATE USER ===== */
 
     const user = await User.create({
       email: normalizedEmail,
@@ -77,26 +65,19 @@ export const register = async (req, res) => {
       role: "owner",
     });
 
-    /* ===== CREATE ACCOUNT ===== */
-
     const account = await Account.create({
       ownerId: user._id,
       plan: "starter",
       userLimit: 1,
     });
 
-    /* ===== LINK ACCOUNT ===== */
-
     user.accountId = account._id;
     await user.save();
 
-    /* ===== GENERATE TOKEN ===== */
-
     const token = generateToken(user._id);
 
-    /* ===== SET COOKIE ===== */
-
-    res.cookie("token", token, getCookieOptions(req));
+    // 🔥 SET AUTH COOKIE
+    res.cookie("token", token, cookieOptions);
 
     return res.status(201).json({
       message: "Registered successfully",
@@ -143,10 +124,7 @@ export const login = async (req, res) => {
       });
     }
 
-    const isMatch = await bcrypt.compare(
-      password,
-      user.password
-    );
+    const isMatch = await bcrypt.compare(password, user.password);
 
     if (!isMatch) {
       return res.status(401).json({
@@ -156,9 +134,8 @@ export const login = async (req, res) => {
 
     const token = generateToken(user._id);
 
-    /* ===== SET COOKIE ===== */
-
-    res.cookie("token", token, getCookieOptions(req));
+    // 🔥 SET AUTH COOKIE
+    res.cookie("token", token, cookieOptions);
 
     return res.status(200).json({
       message: "Login successful",
@@ -184,11 +161,7 @@ export const login = async (req, res) => {
 ===================================================== */
 
 export const logout = (req, res) => {
-  res.clearCookie("token", {
-    httpOnly: true,
-    secure: true,
-    sameSite: "none",
-  });
+  res.clearCookie("token", cookieOptions);
 
   res.json({
     message: "Logged out successfully",
