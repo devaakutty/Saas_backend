@@ -5,7 +5,6 @@ import cookieParser from "cookie-parser";
 
 import connectDB from "./config/db.js";
 
-// import authRoutes from "./routes/authRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import customerRoutes from "./routes/customerRoutes.js";
@@ -15,17 +14,42 @@ import dashboardRoutes from "./routes/dashboardRoutes.js";
 import reportRoutes from "./routes/reportRoutes.js";
 import securityRoutes from "./routes/securityRoutes.js";
 import paymentRoutes from "./routes/paymentRoutes.js";
-// import teamRoutes from "./routes/teamRoutes.js";
 import accountRoutes from "./routes/accountRoutes.js";
+
 import { errorHandler } from "./middleware/errorMiddleware.js";
 
 dotenv.config();
-/* ================= CONNECT TO DB ================= */
-await connectDB();
 
 const app = express();
 
-/* ================= CORS FIX ================= */
+/* ================== SAFE DB CONNECTION (SERVERLESS READY) ================== */
+
+let isConnected = false;
+
+const connectDatabase = async () => {
+  if (isConnected) return;
+
+  try {
+    await connectDB();
+    isConnected = true;
+    console.log("MongoDB Connected ✅");
+  } catch (error) {
+    console.error("DB Connection Failed ❌", error);
+    throw error;
+  }
+};
+
+// Connect DB before handling routes
+app.use(async (req, res, next) => {
+  try {
+    await connectDatabase();
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
+/* ================== CORS ================== */
 
 const allowedOrigins = [
   "http://localhost:3000",
@@ -50,19 +74,14 @@ app.use(
   })
 );
 
-/* ✅ IMPORTANT: Handle preflight properly */
-app.options("*", cors());
-
-
-/* ================= BODY PARSER (🔥 CRITICAL FIX) ================= */
+/* ================== BODY PARSER ================== */
 app.use(express.json());
-app.use(express.urlencoded({ extended: true })); // ✅ REQUIRED
+app.use(express.urlencoded({ extended: true }));
 
-/* ================= COOKIE PARSER ================= */
+/* ================== COOKIE PARSER ================== */
 app.use(cookieParser());
 
-/* ================= ROUTES ================= */
-// app.use("/api/auth", authRoutes);
+/* ================== ROUTES ================== */
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/customers", customerRoutes);
@@ -72,22 +91,21 @@ app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/security", securityRoutes);
 app.use("/api/payments", paymentRoutes);
-// app.use("/api/team", teamRoutes);
 app.use("/api/account", accountRoutes);
 
-/* ================= HEALTH CHECK ================= */
+/* ================== HEALTH CHECK ================== */
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok" });
 });
 
-/* ================= ROOT ================= */
+/* ================== ROOT ================== */
 app.get("/", (req, res) => {
   res.json({
-    status: "Backend running 🚀..Go",
+    status: "Backend running 🚀",
   });
 });
 
-/* ================= ERROR HANDLER ================= */
+/* ================== ERROR HANDLER ================== */
 app.use(errorHandler);
 
 export default app;
