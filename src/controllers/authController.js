@@ -21,6 +21,7 @@ const generateToken = (id) => {
    HELPER: COOKIE OPTIONS (PRODUCTION SAFE)
 ===================================================== */
 
+  // const isProduction = process.env.NODE_ENV === "production";
   const isProduction = process.env.NODE_ENV === "production";
 
   const cookieOptions = {
