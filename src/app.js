@@ -54,7 +54,7 @@ app.use(async (req, res, next) => {
 /* ================== CORS ================== */
 
 const allowedOrigins = [
-    "https://saas-frontend-theta-five.vercel.app",
+    "https://saas-frontend-trytwo.vercel.app",
     "http://localhost:3000"
   // "https://saas-billzfrontend.vercel.app",
 
