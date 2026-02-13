@@ -24,12 +24,13 @@ const generateToken = (id) => {
   // const isProduction = process.env.NODE_ENV === "production";
   const isProduction = process.env.NODE_ENV === "production";
 
-  const cookieOptions = {
-    httpOnly: true,
-    secure: isProduction,              // secure only in production
-    sameSite: isProduction ? "none" : "lax",
-    maxAge: 24 * 60 * 60 * 1000,
-  };
+    const cookieOptions = {
+      httpOnly: true,
+      secure: true,          // ALWAYS true in production
+      sameSite: "none",      // REQUIRED for cross-domain
+      maxAge: 24 * 60 * 60 * 1000,
+    };
+
 
 
 /* =====================================================
