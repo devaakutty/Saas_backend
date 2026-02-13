@@ -38,33 +38,45 @@ const generateToken = (id) => {
 
 export const register = async (req, res) => {
   try {
-    const { email, password, firstName, lastName } = req.body;
+    const { name, email, mobile, password } = req.body;
 
-    if (!email || !password) {
+    if (!name || !email || !mobile || !password) {
       return res.status(400).json({
-        message: "Email and password required",
+        message: "All fields are required",
       });
     }
 
     const normalizedEmail = email.trim().toLowerCase();
 
+    // 🔍 Check duplicates (email OR mobile)
     const existingUser = await User.findOne({
-      email: normalizedEmail,
+      $or: [
+        { email: normalizedEmail },
+        { mobile }
+      ],
     });
 
     if (existingUser) {
-      return res.status(400).json({
-        message: "User already exists",
-      });
+      if (existingUser.email === normalizedEmail) {
+        return res.status(400).json({
+          message: "Email already registered",
+        });
+      }
+
+      if (existingUser.mobile === mobile) {
+        return res.status(400).json({
+          message: "Mobile number already registered",
+        });
+      }
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const user = await User.create({
+      name,
       email: normalizedEmail,
+      mobile,
       password: hashedPassword,
-      firstName: firstName || "",
-      lastName: lastName || "",
       role: "owner",
     });
 
@@ -79,7 +91,6 @@ export const register = async (req, res) => {
 
     const token = generateToken(user._id);
 
-    // 🔥 SET AUTH COOKIE
     res.cookie("token", token, cookieOptions);
 
     return res.status(201).json({
@@ -100,7 +111,6 @@ export const register = async (req, res) => {
     });
   }
 };
-
 /* =====================================================
    LOGIN
 ===================================================== */
