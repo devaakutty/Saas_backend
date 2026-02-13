@@ -22,6 +22,8 @@ dotenv.config();
 
 const app = express();
 
+app.set("trust proxy", 1);
+
 /* ================== SAFE DB CONNECTION (SERVERLESS READY) ================== */
 
 let isConnected = false;

@@ -27,7 +27,8 @@ const generateToken = (id) => {
     const cookieOptions = {
       httpOnly: true,
       secure: true,          // ALWAYS true in production
-      sameSite: "none",      // REQUIRED for cross-domain
+      sameSite: "none", 
+      path: "/",      // REQUIRED for cross-domain
       maxAge: 24 * 60 * 60 * 1000,
     };
 
