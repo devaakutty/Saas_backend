@@ -16,94 +16,75 @@ const generateToken = (id) => {
 /* =====================================================
    VERIFY PAYMENT (PLAN UPGRADE)
 ===================================================== */
+  export const verifyPayment = async (req, res) => {
+    try {
+      const { email, plan } = req.body;
 
-export const verifyPayment = async (req, res) => {
-  try {
-    const user = req.user;
-    const { plan } = req.body;
+      if (!email || !plan) {
+        return res.status(400).json({
+          message: "Email and plan are required",
+        });
+      }
 
-    /* ================= AUTH CHECK ================= */
+      if (!PLAN_CONFIG[plan]) {
+        return res.status(400).json({
+          message: "Invalid plan",
+        });
+      }
 
-    if (!user) {
-      return res.status(401).json({
-        message: "Unauthorized",
+      // 🔍 Find user manually (NOT using req.user)
+      const user = await User.findOne({ email }).populate("accountId");
+
+      if (!user) {
+        return res.status(404).json({
+          message: "User not found",
+        });
+      }
+
+      const account = await Account.findById(user.accountId);
+
+      if (!account) {
+        return res.status(404).json({
+          message: "Account not found",
+        });
+      }
+
+      /* ================= UPDATE PLAN ================= */
+
+      account.plan = plan;
+      account.userLimit = PLAN_CONFIG[plan].userLimit;
+      account.updatedAt = new Date();
+
+      await account.save();
+
+      /* ================= LOGIN USER ================= */
+
+      const token = generateToken(user._id);
+
+      const isProduction = process.env.NODE_ENV === "production";
+
+      res.cookie("token", token, {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: isProduction ? "none" : "lax",
+        maxAge: 24 * 60 * 60 * 1000,
+        path: "/",
+      });
+
+      res.json({
+        message: "Payment successful",
+        plan: account.plan,
+        userLimit: account.userLimit,
+      });
+
+    } catch (error) {
+      console.error("VERIFY PAYMENT ERROR:", error);
+
+      res.status(500).json({
+        message: "Payment verification failed",
       });
     }
-
-    if (user.role !== "owner") {
-      return res.status(403).json({
-        message: "Only account owner can upgrade plan",
-      });
-    }
-
-    if (!user.accountId) {
-      return res.status(400).json({
-        message: "User account not properly initialized",
-      });
-    }
-
-    /* ================= PLAN VALIDATION ================= */
-
-    if (!PLAN_CONFIG[plan]) {
-      return res.status(400).json({
-        message: "Invalid plan",
-      });
-    }
-
-    /* ================= FETCH ACCOUNT ================= */
-
-    const account = await Account.findById(user.accountId);
-
-    if (!account) {
-      return res.status(404).json({
-        message: "Account not found",
-      });
-    }
-
-    if (account.plan === plan) {
-      return res.status(400).json({
-        message: "You are already using this plan",
-      });
-    }
-
-    /* ================= UPDATE PLAN ================= */
-
-    account.plan = plan;
-    account.userLimit = PLAN_CONFIG[plan].userLimit;
-    account.updatedAt = new Date();
-
-    await account.save();
-
-    /* ================= REFRESH TOKEN ================= */
-
-    const freshUser = await User.findById(user.id);
-
-    const token = generateToken(freshUser._id);
-
-    res.cookie("token", token, {
-      httpOnly: true,
-      secure: true, // MUST be true in production
-      sameSite: "none", // required for Vercel cross-domain
-      maxAge: 24 * 60 * 60 * 1000,
-    });
-
-    /* ================= RESPONSE ================= */
-
-    res.json({
-      message: "Plan upgraded successfully",
-      plan: account.plan,
-      userLimit: account.userLimit,
-      invoiceLimit: PLAN_CONFIG[plan].invoiceLimit,
-    });
-
-  } catch (error) {
-    console.error("VERIFY PAYMENT ERROR:", error);
-
-    res.status(500).json({
-      message: "Payment verification failed",
-    });
-  }
-};
+  };
 
 /* =====================================================
    CREATE PAYMENT
