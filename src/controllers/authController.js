@@ -18,28 +18,26 @@ const generateToken = (id) => {
 };
 
 /* =====================================================
-   HELPER: COOKIE OPTIONS (PRODUCTION SAFE)
+   COOKIE OPTIONS
 ===================================================== */
 
-  // const isProduction = process.env.NODE_ENV === "production";
 const isProduction = process.env.NODE_ENV === "production";
 
 const cookieOptions = {
   httpOnly: true,
-  secure: isProduction,                     // only true in production
-  sameSite: isProduction ? "none" : "lax",  // lax for localhost
+  secure: isProduction,
+  sameSite: isProduction ? "none" : "lax",
   path: "/",
   maxAge: 24 * 60 * 60 * 1000,
 };
 
-
 /* =====================================================
-   REGISTER
+   REGISTER CONTROLLER (FIXED)
 ===================================================== */
 
 export const register = async (req, res) => {
   try {
-    const { name, email, mobile, password } = req.body;
+    const { name, email, mobile, password, plan } = req.body;
 
     if (!name || !email || !mobile || !password) {
       return res.status(400).json({
@@ -49,11 +47,11 @@ export const register = async (req, res) => {
 
     const normalizedEmail = email.trim().toLowerCase();
 
-    // 🔍 Check duplicates (email OR mobile)
+    // 🔍 Check duplicates
     const existingUser = await User.findOne({
       $or: [
         { email: normalizedEmail },
-        { mobile }
+        { mobile },
       ],
     });
 
@@ -81,18 +79,35 @@ export const register = async (req, res) => {
       role: "owner",
     });
 
+    /* ================= PLAN LOGIC ================= */
+
+    const selectedPlan =
+      plan === "pro" || plan === "business"
+        ? plan
+        : "starter";
+
+    const userLimit =
+      selectedPlan === "starter"
+        ? 1
+        : selectedPlan === "pro"
+        ? 5
+        : 10;
+
     const account = await Account.create({
       ownerId: user._id,
-      plan: "starter",
-      userLimit: 1,
+      plan: selectedPlan,
+      userLimit,
     });
 
     user.accountId = account._id;
     await user.save();
 
-    const token = generateToken(user._id);
+    /* ================= LOGIN ONLY FOR STARTER ================= */
 
-    res.cookie("token", token, cookieOptions);
+    if (selectedPlan === "starter") {
+      const token = generateToken(user._id);
+      res.cookie("token", token, cookieOptions);
+    }
 
     return res.status(201).json({
       message: "Registered successfully",
@@ -100,7 +115,7 @@ export const register = async (req, res) => {
         id: user._id,
         email: user.email,
         role: user.role,
-        plan: account.plan,
+        plan: selectedPlan,
       },
     });
 
@@ -112,6 +127,7 @@ export const register = async (req, res) => {
     });
   }
 };
+
 /* =====================================================
    LOGIN
 ===================================================== */
