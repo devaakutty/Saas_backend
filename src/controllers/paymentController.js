@@ -61,15 +61,19 @@ const generateToken = (id) => {
 
       const token = generateToken(user._id);
 
+      // const isProduction = process.env.NODE_ENV === "production";
+
       const isProduction = process.env.NODE_ENV === "production";
 
-      res.cookie("token", token, {
+      const cookieOptions = {
         httpOnly: true,
-        secure: isProduction,
+        secure: isProduction, // false on localhost
         sameSite: isProduction ? "none" : "lax",
-        maxAge: 24 * 60 * 60 * 1000,
         path: "/",
-      });
+        maxAge: 24 * 60 * 60 * 1000,
+      };
+
+      res.cookie("token", token, cookieOptions);
 
       res.json({
         message: "Payment successful",
