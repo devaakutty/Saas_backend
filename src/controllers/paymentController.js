@@ -16,80 +16,6 @@ const generateToken = (id) => {
 /* =====================================================
    VERIFY PAYMENT (PLAN UPGRADE)
 ===================================================== */
-  // export const verifyPayment = async (req, res) => {
-  //   try {
-  //     const { email, plan } = req.body;
-
-  //     if (!email || !plan) {
-  //       return res.status(400).json({
-  //         message: "Email and plan are required",
-  //       });
-  //     }
-
-  //     if (!PLAN_CONFIG[plan]) {
-  //       return res.status(400).json({
-  //         message: "Invalid plan",
-  //       });
-  //     }
-
-  //     // 🔍 Find user manually (NOT using req.user)
-  //     const user = await User.findOne({ email }).populate("accountId");
-
-  //     if (!user) {
-  //       return res.status(404).json({
-  //         message: "User not found",
-  //       });
-  //     }
-
-  //     const account = await Account.findById(user.accountId);
-
-  //     if (!account) {
-  //       return res.status(404).json({
-  //         message: "Account not found",
-  //       });
-  //     }
-
-  //     /* ================= UPDATE PLAN ================= */
-
-  //     account.plan = plan;
-  //     account.userLimit = PLAN_CONFIG[plan].userLimit;
-  //     account.updatedAt = new Date();
-
-  //     await account.save();
-
-  //     /* ================= LOGIN USER ================= */
-  //     const token = generateToken(user._id);
-  //     res.cookie("token", token, cookieOptions);
-
-
-  //     // const isProduction = process.env.NODE_ENV === "production";
-
-  //     const isProduction = process.env.NODE_ENV === "production";
-
-  //     const cookieOptions = {
-  //       httpOnly: true,
-  //       secure: isProduction, // false on localhost
-  //       sameSite: isProduction ? "none" : "lax",
-  //       path: "/",
-  //       maxAge: 24 * 60 * 60 * 1000,
-  //     };
-
-  //     res.cookie("token", token, cookieOptions);
-
-  //     res.json({
-  //       message: "Payment successful",
-  //       plan: account.plan,
-  //       userLimit: account.userLimit,
-  //     });
-
-  //   } catch (error) {
-  //     console.error("VERIFY PAYMENT ERROR:", error);
-
-  //     res.status(500).json({
-  //       message: "Payment verification failed",
-  //     });
-  //   }
-  // };
 export const verifyPayment = async (req, res) => {
   try {
     const { email, plan } = req.body;
@@ -122,29 +48,28 @@ export const verifyPayment = async (req, res) => {
       });
     }
 
-    // ✅ UPDATE PLAN
+    /* ================= UPDATE PLAN ================= */
+
     account.plan = plan;
     account.userLimit = PLAN_CONFIG[plan].userLimit;
+    account.isPaymentVerified = true;   // 🔥 IMPORTANT FIX
     account.updatedAt = new Date();
+
     await account.save();
 
-    // ✅ CREATE TOKEN AFTER PAYMENT
-    const token = generateToken(user._id);
+    /* ================= GENERATE TOKEN ================= */
 
-    const isProduction = process.env.NODE_ENV === "production";
+    const token = generateToken(user._id);
 
     const cookieOptions = {
       httpOnly: true,
-      secure: isProduction,
-      sameSite: isProduction ? "none" : "lax",
+      secure: true,
+      sameSite: "none",
       path: "/",
       maxAge: 24 * 60 * 60 * 1000,
     };
 
     res.cookie("token", token, cookieOptions);
-
-
-    // res.cookie("token", token, cookieOptions);
 
     return res.status(200).json({
       message: "Payment successful",
