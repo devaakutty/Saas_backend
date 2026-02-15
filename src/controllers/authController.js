@@ -91,19 +91,22 @@ export const register = async (req, res) => {
     user.accountId = account._id;
     await user.save();
 
-    // 🔥 ALWAYS LOGIN USER
-    const token = generateToken(user._id);
-    res.cookie("token", token, cookieOptions);
+        // REMOVE THIS COMPLETELY
+        // if (selectedPlan === "starter") {
+        //   const token = generateToken(user._id);
+        //   res.cookie("token", token, cookieOptions);
+        // }
 
-    return res.status(201).json({
-      message: "Registered successfully",
-      user: {
-        id: user._id,
-        email: user.email,
-        role: user.role,
-        plan: selectedPlan,
-      },
-    });
+        return res.status(201).json({
+          message: "Registered successfully",
+          user: {
+            id: user._id,
+            email: user.email,
+            role: user.role,
+            plan: selectedPlan,
+          },
+        });
+
 
   } catch (err) {
     console.error("REGISTER ERROR:", err);

@@ -58,6 +58,8 @@ const allowedOrigins = [
     "http://localhost:3000"
   // "https://saas-billzfrontend.vercel.app",
 
+  // https://saas-frontend-trytwo-npl9la9hk-devaakuttys-projects.vercel.app
+
 ];
 
 app.use(
