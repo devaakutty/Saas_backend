@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
+import Account from "../models/Account.js";
 
 /* ================= AUTH PROTECT ================= */
 export const protect = async (req, res, next) => {
@@ -29,7 +30,6 @@ export const protect = async (req, res, next) => {
       });
     }
 
-    // 🔥 Populate account to access plan + payment status
     const user = await User.findById(decoded.id)
       .select("_id email role accountId")
       .populate("accountId");
@@ -40,14 +40,40 @@ export const protect = async (req, res, next) => {
       });
     }
 
-    // 🔥 Attach structured user object to request
+    const account = user.accountId;
+
+    if (!account) {
+      return res.status(401).json({
+        message: "Account not found",
+      });
+    }
+
+    /* ================= SUBSCRIPTION CHECK ================= */
+
+    let isPaymentVerified =
+      account.isPaymentVerified ?? false;
+
+    // 🔥 Auto-expire subscription
+    if (
+      account.plan !== "starter" &&
+      account.subscriptionEnd &&
+      new Date() > new Date(account.subscriptionEnd)
+    ) {
+      account.isPaymentVerified = false;
+      await account.save();
+      isPaymentVerified = false;
+    }
+
+    /* ================= ATTACH USER ================= */
+
     req.user = {
       id: user._id.toString(),
       email: user.email,
       role: user.role,
-      plan: user.accountId?.plan || "starter",
-      isPaymentVerified:
-        user.accountId?.isPaymentVerified ?? false,
+      accountId: account._id.toString(),
+      plan: account.plan || "starter",
+      isPaymentVerified,
+      subscriptionEnd: account.subscriptionEnd || null,
     };
 
     next();
