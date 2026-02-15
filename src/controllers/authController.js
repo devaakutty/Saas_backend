@@ -3,9 +3,7 @@ import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 import Account from "../models/Account.js";
 
-/* =====================================================
-   HELPER: GENERATE JWT
-===================================================== */
+/* ================= GENERATE TOKEN ================= */
 
 const generateToken = (id) => {
   if (!process.env.JWT_SECRET) {
@@ -17,42 +15,30 @@ const generateToken = (id) => {
   });
 };
 
-/* =====================================================
-   COOKIE OPTIONS
-===================================================== */
-    const token = generateToken(user._id);
+/* ================= COOKIE OPTIONS ================= */
 
-    const cookieOptions = {
-      httpOnly: true,
-      secure: true,
-      sameSite: "none",
-      path: "/",
-      maxAge: 24 * 60 * 60 * 1000,
-    };
+const cookieOptions = {
+  httpOnly: true,
+  secure: true,          // production (Render + Vercel)
+  sameSite: "none",      // required for cross-domain
+  path: "/",
+  maxAge: 24 * 60 * 60 * 1000,
+};
 
-    res.cookie("token", token, cookieOptions);
-
-/* =====================================================
-   REGISTER CONTROLLER (FIXED)
-===================================================== */
+/* ================= REGISTER ================= */
 
 export const register = async (req, res) => {
   try {
     const { name, email, mobile, password, plan } = req.body;
 
     if (!name || !email || !mobile || !password) {
-      return res.status(400).json({
-        message: "All fields are required",
-      });
+      return res.status(400).json({ message: "All fields are required" });
     }
 
     const normalizedEmail = email.trim().toLowerCase();
 
     const existingUser = await User.findOne({
-      $or: [
-        { email: normalizedEmail },
-        { mobile },
-      ],
+      $or: [{ email: normalizedEmail }, { mobile }],
     });
 
     if (existingUser) {
@@ -64,16 +50,11 @@ export const register = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const selectedPlan =
-      plan === "pro" || plan === "business"
-        ? plan
-        : "starter";
+      plan === "pro" || plan === "business" ? plan : "starter";
 
     const userLimit =
-      selectedPlan === "starter"
-        ? 1
-        : selectedPlan === "pro"
-        ? 5
-        : 10;
+      selectedPlan === "starter" ? 1 :
+      selectedPlan === "pro" ? 5 : 10;
 
     const user = await User.create({
       name,
@@ -92,35 +73,23 @@ export const register = async (req, res) => {
     user.accountId = account._id;
     await user.save();
 
-        // REMOVE THIS COMPLETELY
-        // if (selectedPlan === "starter") {
-        //   const token = generateToken(user._id);
-        //   res.cookie("token", token, cookieOptions);
-        // }
-
-        return res.status(201).json({
-          message: "Registered successfully",
-          user: {
-            id: user._id,
-            email: user.email,
-            role: user.role,
-            plan: selectedPlan,
-          },
-        });
-
+    return res.status(201).json({
+      message: "Registered successfully",
+      user: {
+        id: user._id,
+        email: user.email,
+        role: user.role,
+        plan: selectedPlan,
+      },
+    });
 
   } catch (err) {
     console.error("REGISTER ERROR:", err);
-
-    return res.status(500).json({
-      message: "Registration failed",
-    });
+    return res.status(500).json({ message: "Registration failed" });
   }
 };
 
-/* =====================================================
-   LOGIN
-===================================================== */
+/* ================= LOGIN ================= */
 
 export const login = async (req, res) => {
   try {
@@ -154,7 +123,6 @@ export const login = async (req, res) => {
 
     const token = generateToken(user._id);
 
-    // 🔥 SET AUTH COOKIE
     res.cookie("token", token, cookieOptions);
 
     return res.status(200).json({
@@ -169,21 +137,13 @@ export const login = async (req, res) => {
 
   } catch (err) {
     console.error("LOGIN ERROR:", err);
-
-    return res.status(500).json({
-      message: "Login failed",
-    });
+    return res.status(500).json({ message: "Login failed" });
   }
 };
 
-/* =====================================================
-   LOGOUT
-===================================================== */
+/* ================= LOGOUT ================= */
 
 export const logout = (req, res) => {
   res.clearCookie("token", cookieOptions);
-
-  res.json({
-    message: "Logged out successfully",
-  });
+  res.json({ message: "Logged out successfully" });
 };
