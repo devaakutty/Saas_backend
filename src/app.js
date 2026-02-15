@@ -54,12 +54,29 @@ app.use(async (req, res, next) => {
 
 /* ================= CORS (FIXED FOR VERCEL + RENDER) ================= */
 
+const allowedOrigins = [
+  "http://localhost:3000",
+  "https://saas-frontend-63.vercel.app", // production domain
+];
+
 app.use(
   cors({
-    origin: true,          // 🔥 Allow all dynamic origins (safe with credentials)
-    credentials: true,     // 🔥 REQUIRED for cookies
+    origin: function (origin, callback) {
+      if (!origin) return callback(null, true);
+
+      if (
+        allowedOrigins.includes(origin) ||
+        origin.endsWith(".vercel.app")
+      ) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true,
   })
 );
+
 
 /* ================= BODY PARSER ================= */
 app.use(express.json());

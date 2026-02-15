@@ -1,5 +1,6 @@
 import express from "express";
 import {
+  getMe,
   verifyPayment,
   createPayment,
   getPaymentByInvoice,
@@ -11,15 +12,22 @@ import { protect } from "../middleware/authMiddleware.js";
 const router = express.Router();
 
 /* =====================================================
-   PLAN PAYMENT (NO LOGIN REQUIRED)
-   Used after Register for Pro/Business
+   USER INFO (after login / payment)
+===================================================== */
+
+// GET /api/payments/me
+router.get("/me", protect, getMe);
+
+/* =====================================================
+   PLAN PAYMENT VERIFY (NO PROTECT)
+   Used right after register
 ===================================================== */
 
 // POST /api/payments/verify
 router.post("/verify", verifyPayment);
 
 /* =====================================================
-   INVOICE PAYMENTS (LOGIN REQUIRED)
+   INVOICE PAYMENTS (Protected)
 ===================================================== */
 
 // POST /api/payments

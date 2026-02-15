@@ -35,6 +35,38 @@ const getCookieOptions = () => {
    VERIFY PAYMENT (PLAN UPGRADE)
 ===================================================== */
 
+export const getMe = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id)
+      .select("_id email role accountId")
+      .populate("accountId");
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
+
+    res.json({
+      id: user._id,
+      email: user.email,
+      role: user.role,
+      plan: user.accountId?.plan || "starter",
+      isPaymentVerified:
+        user.accountId?.isPaymentVerified || false,
+      subscriptionEnd:
+        user.accountId?.subscriptionEnd || null,
+    });
+
+  } catch (error) {
+    console.error("GET ME ERROR:", error);
+    res.status(500).json({
+      message: "Failed to fetch user",
+    });
+  }
+};
+
+
 export const verifyPayment = async (req, res) => {
   try {
     const { email, plan } = req.body;
