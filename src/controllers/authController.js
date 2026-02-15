@@ -20,28 +20,17 @@ const generateToken = (id) => {
 /* =====================================================
    COOKIE OPTIONS
 ===================================================== */
+    const token = generateToken(user._id);
 
-// const isProduction = process.env.NODE_ENV === "production";
+    const cookieOptions = {
+      httpOnly: true,
+      secure: true,
+      sameSite: "none",
+      path: "/",
+      maxAge: 24 * 60 * 60 * 1000,
+    };
 
-// const cookieOptions = {
-//   httpOnly: true,
-//   secure: isProduction,
-//   sameSite: isProduction ? "none" : "lax",
-//   path: "/",
-//   maxAge: 24 * 60 * 60 * 1000,
-// };
-
-const token = generateToken(user._id);
-
-const cookieOptions = {
-  httpOnly: true,
-  secure: true,        // required for HTTPS
-  sameSite: "none",    // required for cross-domain
-  path: "/",
-  maxAge: 24 * 60 * 60 * 1000,
-};
-
-res.cookie("token", token, cookieOptions);
+    res.cookie("token", token, cookieOptions);
 
 /* =====================================================
    REGISTER CONTROLLER (FIXED)
