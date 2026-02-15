@@ -47,7 +47,6 @@ export const register = async (req, res) => {
 
     const normalizedEmail = email.trim().toLowerCase();
 
-    // 🔍 Check duplicates
     const existingUser = await User.findOne({
       $or: [
         { email: normalizedEmail },
@@ -56,30 +55,12 @@ export const register = async (req, res) => {
     });
 
     if (existingUser) {
-      if (existingUser.email === normalizedEmail) {
-        return res.status(400).json({
-          message: "Email already registered",
-        });
-      }
-
-      if (existingUser.mobile === mobile) {
-        return res.status(400).json({
-          message: "Mobile number already registered",
-        });
-      }
+      return res.status(400).json({
+        message: "Email or mobile already registered",
+      });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-
-    const user = await User.create({
-      name,
-      email: normalizedEmail,
-      mobile,
-      password: hashedPassword,
-      role: "owner",
-    });
-
-    /* ================= PLAN LOGIC ================= */
 
     const selectedPlan =
       plan === "pro" || plan === "business"
@@ -93,6 +74,14 @@ export const register = async (req, res) => {
         ? 5
         : 10;
 
+    const user = await User.create({
+      name,
+      email: normalizedEmail,
+      mobile,
+      password: hashedPassword,
+      role: "owner",
+    });
+
     const account = await Account.create({
       ownerId: user._id,
       plan: selectedPlan,
@@ -102,12 +91,9 @@ export const register = async (req, res) => {
     user.accountId = account._id;
     await user.save();
 
-    /* ================= LOGIN ONLY FOR STARTER ================= */
-
-    if (selectedPlan === "starter") {
-      const token = generateToken(user._id);
-      res.cookie("token", token, cookieOptions);
-    }
+    // 🔥 ALWAYS LOGIN USER
+    const token = generateToken(user._id);
+    res.cookie("token", token, cookieOptions);
 
     return res.status(201).json({
       message: "Registered successfully",
@@ -127,6 +113,7 @@ export const register = async (req, res) => {
     });
   }
 };
+
 
 /* =====================================================
    LOGIN
