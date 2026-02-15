@@ -54,12 +54,9 @@ app.use(async (req, res, next) => {
 /* ================== CORS ================== */
 
 const allowedOrigins = [
+    "https://saas-frontend-trytwo-2kv3v6uoo-devaakuttys-projects.vercel.app",
     "https://saas-frontend-trytwo.vercel.app",
     "http://localhost:3000"
-  // "https://saas-billzfrontend.vercel.app",
-
-  // https://saas-frontend-trytwo-npl9la9hk-devaakuttys-projects.vercel.app
-
 ];
 
 app.use(
