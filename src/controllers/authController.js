@@ -17,13 +17,14 @@ const generateToken = (id) => {
 
 /* ================= COOKIE OPTIONS ================= */
 
-const cookieOptions = {
+// 🔥 Use function instead of constant (safer for clearCookie)
+const getCookieOptions = () => ({
   httpOnly: true,
-  secure: true,          // production (Render + Vercel)
-  sameSite: "none",      // required for cross-domain
+  secure: true,           // Required for HTTPS (Render)
+  sameSite: "none",       // Required for cross-domain (Vercel ↔ Render)
   path: "/",
   maxAge: 24 * 60 * 60 * 1000,
-};
+});
 
 /* ================= REGISTER ================= */
 
@@ -32,7 +33,7 @@ export const register = async (req, res) => {
     const { name, email, mobile, password, plan } = req.body;
 
     if (!name || !email || !mobile || !password) {
-      return res.status(400).json({ message: "All fields are required" });
+      return res.status(400).json({ message: "All fields required" });
     }
 
     const normalizedEmail = email.trim().toLowerCase();
@@ -68,6 +69,7 @@ export const register = async (req, res) => {
       ownerId: user._id,
       plan: selectedPlan,
       userLimit,
+      isPaymentVerified: selectedPlan === "starter",
     });
 
     user.accountId = account._id;
@@ -75,12 +77,6 @@ export const register = async (req, res) => {
 
     return res.status(201).json({
       message: "Registered successfully",
-      user: {
-        id: user._id,
-        email: user.email,
-        role: user.role,
-        plan: selectedPlan,
-      },
     });
 
   } catch (err) {
@@ -105,7 +101,7 @@ export const login = async (req, res) => {
 
     const user = await User.findOne({
       email: normalizedEmail,
-    }).populate("accountId");
+    });
 
     if (!user) {
       return res.status(401).json({
@@ -123,16 +119,11 @@ export const login = async (req, res) => {
 
     const token = generateToken(user._id);
 
-    res.cookie("token", token, cookieOptions);
+    // 🔥 Set cookie properly
+    res.cookie("token", token, getCookieOptions());
 
     return res.status(200).json({
       message: "Login successful",
-      user: {
-        id: user._id,
-        email: user.email,
-        role: user.role,
-        plan: user.accountId?.plan,
-      },
     });
 
   } catch (err) {
@@ -144,6 +135,12 @@ export const login = async (req, res) => {
 /* ================= LOGOUT ================= */
 
 export const logout = (req, res) => {
-  res.clearCookie("token", cookieOptions);
+  res.clearCookie("token", {
+    httpOnly: true,
+    secure: true,
+    sameSite: "none",
+    path: "/",
+  });
+
   res.json({ message: "Logged out successfully" });
 };

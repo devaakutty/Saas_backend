@@ -117,6 +117,10 @@ export const getMe = async (req, res) => {
       email: user.email,
       role: user.role,
       plan: planKey,
+      isPaymentVerified:
+        user.accountId?.isPaymentVerified ??
+        planKey === "starter", // starter auto true
+
       userLimit: plan?.userLimit || 1,
       invoiceLimit: plan?.invoiceLimit || 5,
     });

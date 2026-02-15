@@ -13,7 +13,7 @@ export const protect = async (req, res, next) => {
     }
 
     if (!process.env.JWT_SECRET) {
-      console.error("JWT_SECRET missing");
+      console.error("JWT_SECRET missing in environment");
       return res.status(500).json({
         message: "Server configuration error",
       });
@@ -29,8 +29,10 @@ export const protect = async (req, res, next) => {
       });
     }
 
+    // 🔥 Populate account to access plan + payment status
     const user = await User.findById(decoded.id)
-      .select("_id role accountId");
+      .select("_id email role accountId")
+      .populate("accountId");
 
     if (!user) {
       return res.status(401).json({
@@ -38,11 +40,14 @@ export const protect = async (req, res, next) => {
       });
     }
 
-    /* 🔥 IMPORTANT FIX */
+    // 🔥 Attach structured user object to request
     req.user = {
-      id: user._id.toString(),     // ✅ convert ObjectId → string
+      id: user._id.toString(),
+      email: user.email,
       role: user.role,
-      accountId: user.accountId?.toString(),
+      plan: user.accountId?.plan || "starter",
+      isPaymentVerified:
+        user.accountId?.isPaymentVerified ?? false,
     };
 
     next();

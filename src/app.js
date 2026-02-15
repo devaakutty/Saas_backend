@@ -22,9 +22,10 @@ dotenv.config();
 
 const app = express();
 
+/* ================= TRUST PROXY (REQUIRED FOR RENDER) ================= */
 app.set("trust proxy", 1);
 
-/* ================== SAFE DB CONNECTION (SERVERLESS READY) ================== */
+/* ================= DATABASE CONNECTION ================= */
 
 let isConnected = false;
 
@@ -41,7 +42,7 @@ const connectDatabase = async () => {
   }
 };
 
-// Connect DB before handling routes
+// Ensure DB connection before routes
 app.use(async (req, res, next) => {
   try {
     await connectDatabase();
@@ -51,40 +52,23 @@ app.use(async (req, res, next) => {
   }
 });
 
-/* ================== CORS ================== */
-
-const allowedOrigins = [
-    "https://saas-frontend-trytwo-2kv3v6uoo-devaakuttys-projects.vercel.app",
-    "https://saas-frontend-trytwo.vercel.app",
-    "http://localhost:3000"
-];
+/* ================= CORS (FIXED FOR VERCEL + RENDER) ================= */
 
 app.use(
   cors({
-    origin: function (origin, callback) {
-      if (!origin) return callback(null, true);
-
-      if (
-        allowedOrigins.includes(origin) ||
-        origin.endsWith(".vercel.app")
-      ) {
-        return callback(null, true);
-      }
-
-      return callback(new Error("Not allowed by CORS"));
-    },
-    credentials: true,
+    origin: true,          // 🔥 Allow all dynamic origins (safe with credentials)
+    credentials: true,     // 🔥 REQUIRED for cookies
   })
 );
 
-/* ================== BODY PARSER ================== */
+/* ================= BODY PARSER ================= */
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-/* ================== COOKIE PARSER ================== */
+/* ================= COOKIE PARSER ================= */
 app.use(cookieParser());
 
-/* ================== ROUTES ================== */
+/* ================= ROUTES ================= */
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/customers", customerRoutes);
@@ -96,19 +80,19 @@ app.use("/api/security", securityRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/account", accountRoutes);
 
-/* ================== HEALTH CHECK ================== */
+/* ================= HEALTH CHECK ================= */
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok" });
 });
 
-/* ================== ROOT ================== */
+/* ================= ROOT ================= */
 app.get("/", (req, res) => {
   res.json({
-    status: "Backend running 🚀 go ",
+    status: "Backend running 🚀",
   });
 });
 
-/* ================== ERROR HANDLER ================== */
+/* ================= ERROR HANDLER ================= */
 app.use(errorHandler);
 
 export default app;

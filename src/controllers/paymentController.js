@@ -143,6 +143,9 @@ export const verifyPayment = async (req, res) => {
 
     res.cookie("token", token, cookieOptions);
 
+
+    // res.cookie("token", token, cookieOptions);
+
     return res.status(200).json({
       message: "Payment successful",
       plan: account.plan,
