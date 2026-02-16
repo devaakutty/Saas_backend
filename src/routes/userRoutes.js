@@ -12,16 +12,22 @@ import { protect } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-/* ================= PROFILE ================= */
-
+// Get logged-in user
 router.get("/me", protect, getMe);
+
+// Update profile
 router.put("/me", protect, updateMe);
+
+// Delete account
 router.delete("/me", protect, deleteMe);
 
-/* ================= TEAM MANAGEMENT ================= */
-
+// Add team member
 router.post("/team-members", protect, addTeamMember);
+
+// Get all team members
 router.get("/team", protect, getTeamMembers);
+
+// Remove team member
 router.delete("/team/:userId", protect, removeTeamMember);
 
 export default router;

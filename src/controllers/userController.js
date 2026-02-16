@@ -4,11 +4,44 @@ import { PLAN_CONFIG } from "../planConfig.js";
 import bcrypt from "bcryptjs";
 
 /* =====================================================
+   🔥 HELPER: BUILD USER RESPONSE
+===================================================== */
+
+const buildUserResponse = (user) => {
+  const planKey = user.accountId?.plan || "starter";
+  const plan = PLAN_CONFIG[planKey];
+
+  return {
+    id: user._id,
+    email: user.email,
+    role: user.role,
+    plan: planKey,
+    isPaymentVerified:
+      user.accountId?.isPaymentVerified ?? planKey === "starter",
+
+    userLimit: plan?.userLimit || 1,
+    invoiceLimit: plan?.invoiceLimit || 5,
+
+    firstName: user.firstName,
+    lastName: user.lastName,
+    phone: user.phone,
+    company: user.company,
+    website: user.website,
+    gstNumber: user.gstNumber,
+    address: user.address,
+    country: user.country,
+    state: user.state,
+    city: user.city,
+    zip: user.zip,
+  };
+};
+
+/* =====================================================
    ADD TEAM MEMBER (OWNER ONLY)
 ===================================================== */
 export const addTeamMember = async (req, res) => {
   try {
-    const { id, role, accountId } = req.user;
+    const { role, accountId } = req.user;
     const { firstName, lastName, email, password } = req.body;
 
     if (role !== "owner") {
@@ -38,10 +71,7 @@ export const addTeamMember = async (req, res) => {
     }
 
     /* ===== USER LIMIT CHECK ===== */
-
-    const usersCount = await User.countDocuments({
-      accountId,
-    });
+    const usersCount = await User.countDocuments({ accountId });
 
     if (usersCount >= plan.userLimit) {
       return res.status(403).json({
@@ -50,7 +80,6 @@ export const addTeamMember = async (req, res) => {
     }
 
     /* ===== CHECK EXISTING ===== */
-
     const normalizedEmail = email.trim().toLowerCase();
 
     const existingUser = await User.findOne({
@@ -65,7 +94,6 @@ export const addTeamMember = async (req, res) => {
     }
 
     /* ===== CREATE MEMBER ===== */
-
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const member = await User.create({
@@ -109,21 +137,7 @@ export const getMe = async (req, res) => {
       });
     }
 
-    const planKey = user.accountId?.plan || "starter";
-    const plan = PLAN_CONFIG[planKey];
-
-    res.json({
-      id: user._id,
-      email: user.email,
-      role: user.role,
-      plan: planKey,
-      isPaymentVerified:
-        user.accountId?.isPaymentVerified ??
-        planKey === "starter", // starter auto true
-
-      userLimit: plan?.userLimit || 1,
-      invoiceLimit: plan?.invoiceLimit || 5,
-    });
+    res.json(buildUserResponse(user));
 
   } catch (err) {
     console.error("GET ME ERROR:", err);
@@ -138,6 +152,7 @@ export const getMe = async (req, res) => {
 ===================================================== */
 export const updateMe = async (req, res) => {
   try {
+    // Prevent protected fields
     delete req.body.role;
     delete req.body.accountId;
     delete req.body.password;
@@ -146,7 +161,9 @@ export const updateMe = async (req, res) => {
       req.user.id,
       req.body,
       { new: true, runValidators: true }
-    ).select("-password");
+    )
+      .populate("accountId")
+      .select("-password");
 
     if (!updatedUser) {
       return res.status(404).json({
@@ -154,10 +171,7 @@ export const updateMe = async (req, res) => {
       });
     }
 
-    res.json({
-      message: "Profile updated successfully",
-      user: updatedUser,
-    });
+    res.json(buildUserResponse(updatedUser));
 
   } catch (error) {
     console.error("UPDATE ME ERROR:", error);
