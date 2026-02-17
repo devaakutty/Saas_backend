@@ -354,34 +354,25 @@ export const downloadInvoicePdf = async (req, res) => {
 
     doc.pipe(res);
 
-    /* ===== HEADER ===== */
-    doc.rect(0, 0, 300, 70).fill("#111");
+      /* ===== HEADER ===== */
+      doc.rect(0, 0, 300, 70).fill("#111");
 
-    doc
-      .fillColor("white")
-      .fontSize(22)
-      .font("Helvetica-Bold")
-      .text("QuickBillz", 0, 22, { align: "center" });
+      doc
+        .fillColor("white")
+        .fontSize(20)
+        .font("Helvetica-Bold")
+        .text(req.user.company || "Your Company", 0, 22, { align: "center" });
 
-    doc
-      .fontSize(9)
-      .font("Helvetica")
-      .text("PREMIUM POS INVOICE", { align: "center" });
+      doc
+        .fontSize(9)
+        .font("Helvetica")
+        .text(req.user.address || "", { align: "center" })
+        .text(
+          `Phone: ${req.user.phone || ""}  GST: ${req.user.gstNumber || ""}`,
+          { align: "center" }
+        );
 
-    doc.moveDown(3).fillColor("black");
-
-    /* ===== STORE INFO ===== */
-    doc
-      .font("Helvetica-Bold")
-      .fontSize(11)
-      .text("INVOICEHUB STORE", { align: "center" });
-
-    doc
-      .font("Helvetica")
-      .fontSize(9)
-      .text("Chennai, TN | GST: 33AAAAA0000A1Z5", {
-        align: "center",
-      });
+      doc.moveDown(3).fillColor("black");
 
     doc.moveDown();
 
