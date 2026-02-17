@@ -106,13 +106,37 @@ export const createInvoice = async (req, res) => {
        5️⃣ AUTO INVOICE NUMBER
     ===================================================== */
 
+    // const now = new Date();
+    // const day = String(now.getDate()).padStart(2, "0");
+    // const month = String(now.getMonth() + 1).padStart(2, "0");
+    // const year = String(now.getFullYear()).slice(-2);
+
+    // const datePart = `${day}${month}${year}`;
+    // const prefix = "MIA";
+
+    // const startOfDay = new Date();
+    // startOfDay.setHours(0, 0, 0, 0);
+
+    // const endOfDay = new Date();
+    // endOfDay.setHours(23, 59, 59, 999);
+
+    // const todayCount = await Invoice.countDocuments({
+    //   accountId: user.accountId,
+    //   createdAt: { $gte: startOfDay, $lte: endOfDay },
+    // });
+
+    // const sequence = String(todayCount + 1).padStart(3, "0");
+    // const invoiceNo = `${prefix}-${datePart}-${sequence}`;
+
     const now = new Date();
     const day = String(now.getDate()).padStart(2, "0");
     const month = String(now.getMonth() + 1).padStart(2, "0");
     const year = String(now.getFullYear()).slice(-2);
 
     const datePart = `${day}${month}${year}`;
-    const prefix = "MIA";
+
+    // 🔥 USE ACCOUNT PREFIX
+    const prefix = account.invoicePrefix || "INV";
 
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
@@ -126,6 +150,7 @@ export const createInvoice = async (req, res) => {
     });
 
     const sequence = String(todayCount + 1).padStart(3, "0");
+
     const invoiceNo = `${prefix}-${datePart}-${sequence}`;
 
     /* =====================================================

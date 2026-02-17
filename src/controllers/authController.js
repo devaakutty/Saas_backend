@@ -18,16 +18,28 @@ const generateToken = (id) => {
 /* ================= COOKIE OPTIONS ================= */
 
 // 🔥 Use function instead of constant (safer for clearCookie)
-const getCookieOptions = () => ({
-  httpOnly: true,
-  secure: true,           // Required for HTTPS (Render)
-  sameSite: "none",       // Required for cross-domain (Vercel ↔ Render)
-  path: "/",
-  maxAge: 24 * 60 * 60 * 1000,
-});
+// const getCookieOptions = () => ({
+//   httpOnly: true,
+//   secure: true,           // Required for HTTPS (Render)
+//   sameSite: "none",       // Required for cross-domain (Vercel ↔ Render)
+//   path: "/",
+//   maxAge: 24 * 60 * 60 * 1000,
+// });
+
+
+const getCookieOptions = () => {
+  const isProd = process.env.NODE_ENV === "production";
+
+  return {
+    httpOnly: true,
+    secure: isProd, // 🔥 only true in production
+    sameSite: isProd ? "none" : "lax", // 🔥 important
+    path: "/",
+    maxAge: 24 * 60 * 60 * 1000,
+  };
+};
 
 /* ================= REGISTER ================= */
-
 export const register = async (req, res) => {
   try {
     const { name, email, mobile, password, plan } = req.body;
@@ -84,9 +96,7 @@ export const register = async (req, res) => {
     return res.status(500).json({ message: "Registration failed" });
   }
 };
-
 /* ================= LOGIN ================= */
-
 export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -99,9 +109,12 @@ export const login = async (req, res) => {
 
     const normalizedEmail = email.trim().toLowerCase();
 
+    // 🔥 If your password has select:false in schema, use .select("+password")
     const user = await User.findOne({
       email: normalizedEmail,
-    });
+    })
+      .select("+password") // safe even if not needed
+      .populate("accountId");
 
     if (!user) {
       return res.status(401).json({
@@ -119,21 +132,37 @@ export const login = async (req, res) => {
 
     const token = generateToken(user._id);
 
-    // 🔥 Set cookie properly
     res.cookie("token", token, getCookieOptions());
+
+    const account = user.accountId;
 
     return res.status(200).json({
       message: "Login successful",
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+
+        // 🔥 Premium Settings (important for Payment page)
+        plan: account?.plan || "starter",
+        invoicePrefix: account?.invoicePrefix || "INV",
+        upiId: account?.upiId || "",
+        upiQrImage: account?.upiQrImage || "",
+
+        subscriptionEnd: account?.subscriptionEnd || null,
+        isPaymentVerified: account?.isPaymentVerified || false,
+      },
     });
 
   } catch (err) {
     console.error("LOGIN ERROR:", err);
-    return res.status(500).json({ message: "Login failed" });
+    return res.status(500).json({
+      message: "Login failed",
+    });
   }
 };
-
 /* ================= LOGOUT ================= */
-
 export const logout = (req, res) => {
   res.clearCookie("token", {
     httpOnly: true,

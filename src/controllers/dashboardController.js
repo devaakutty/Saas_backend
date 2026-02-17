@@ -144,7 +144,7 @@ export const getDevices = async (req, res) => {
 ===================================================== */
 export const getLowStockItems = async (req, res) => {
   try {
-    const accountId = req.user.accountId;
+    const accountId = req.user?.accountId;
 
     if (!accountId) {
       return res.status(400).json({
@@ -156,27 +156,20 @@ export const getLowStockItems = async (req, res) => {
 
     const products = await Product.find({
       accountId,
+      isActive: true, // ✅ important
       stock: { $lte: LOW_STOCK_THRESHOLD },
     })
       .sort({ stock: 1 })
-      .select("name stock unit");
+      .select("_id name stock unit");
 
-    // res.json(
-    //   products.map((product) => ({
-    //     id: product._id,
-    //     name: product.name,
-    //     quantity: product.stock,
-    //     unit: product.unit,
-    //   }))
-    // );
-    res.json(
-  products.map((product) => ({
-    _id: product._id,   // ✅ FIXED
-    name: product.name,
-    quantity: product.stock,
-    unit: product.unit,
-  }))
-);
+    const formatted = products.map((product) => ({
+      _id: product._id,
+      name: product.name,
+      quantity: product.stock,
+      unit: product.unit || "pcs",
+    }));
+
+    res.json(formatted);
 
   } catch (error) {
     console.error("Low stock error:", error);

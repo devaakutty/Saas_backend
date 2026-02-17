@@ -6,10 +6,13 @@ import Invoice from "../models/Invoice.js";
 ===================================================== */
 export const getSalesReport = async (req, res) => {
   try {
-    const userId = req.user?.id;
-    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+    const accountId = req.user?.accountId;
 
-    const invoices = await Invoice.find({ userId })
+    if (!accountId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const invoices = await Invoice.find({ accountId })
       .sort({ createdAt: -1 })
       .populate("customerId", "name")
       .select("invoiceNo total status createdAt customerId");
@@ -21,7 +24,7 @@ export const getSalesReport = async (req, res) => {
         total: inv.total,
         status: inv.status,
         createdAt: inv.createdAt,
-        customer: { name: inv.customerId?.name },
+        customer: { name: inv.customerId?.name || "—" },
       })),
     });
   } catch (error) {
@@ -36,12 +39,14 @@ export const getSalesReport = async (req, res) => {
 ===================================================== */
 export const profitLossReport = async (req, res) => {
   try {
-    const userId = req.user?.id;
-    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+    const accountId = req.user?.accountId;
 
-    const invoices = await Invoice.find({ userId });
+    if (!accountId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
 
-    /* ---------- TOTALS ---------- */
+    const invoices = await Invoice.find({ accountId });
+
     let revenue = 0;
     let cost = 0;
 
@@ -49,17 +54,16 @@ export const profitLossReport = async (req, res) => {
       revenue += inv.total;
 
       inv.items.forEach((item) => {
-        cost += item.amount * 0.7; // assumed cost = 70%
+        cost += item.amount * 0.7; // assumed cost 70%
       });
     });
 
     const profit = revenue - cost;
 
-    /* ---------- MONTHLY DATA ---------- */
     const monthlyMap = {};
 
     invoices.forEach((inv) => {
-      const month = inv.createdAt.toLocaleString("en-IN", {
+      const month = new Date(inv.createdAt).toLocaleString("en-IN", {
         month: "short",
         year: "numeric",
       });
@@ -100,26 +104,28 @@ export const profitLossReport = async (req, res) => {
 ===================================================== */
 export const gstReport = async (req, res) => {
   try {
-    const userId = req.user?.id;
-    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+    const accountId = req.user?.accountId;
 
-    const invoices = await Invoice.find({ userId });
+    if (!accountId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const invoices = await Invoice.find({ accountId });
 
     let taxableSales = 0;
     let outputGST = 0;
-    let inputGST = 0; // future purchases
+    let inputGST = 0; // future expense feature
 
     const monthlyMap = {};
 
     invoices.forEach((inv) => {
-      // assuming total is GST inclusive (18%)
       const taxable = inv.total / 1.18;
       const gst = inv.total - taxable;
 
       taxableSales += taxable;
       outputGST += gst;
 
-      const month = inv.createdAt.toLocaleString("en-IN", {
+      const month = new Date(inv.createdAt).toLocaleString("en-IN", {
         month: "short",
         year: "numeric",
       });

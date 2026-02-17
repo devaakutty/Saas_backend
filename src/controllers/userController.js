@@ -6,7 +6,6 @@ import bcrypt from "bcryptjs";
 /* =====================================================
    🔥 HELPER: BUILD USER RESPONSE
 ===================================================== */
-
 const buildUserResponse = (user) => {
   const planKey = user.accountId?.plan || "starter";
   const plan = PLAN_CONFIG[planKey];
@@ -33,6 +32,11 @@ const buildUserResponse = (user) => {
     state: user.state,
     city: user.city,
     zip: user.zip,
+
+    // 🔥🔥🔥 ADD THESE (VERY IMPORTANT)
+    invoicePrefix: user.accountId?.invoicePrefix || "INV",
+    upiId: user.accountId?.upiId || "",
+    upiQrImage: user.accountId?.upiQrImage || "",
   };
 };
 

@@ -16,7 +16,7 @@ const accountSchema = new mongoose.Schema(
 
     userLimit: {
       type: Number,
-      default: 1, // starter
+      default: 1,
     },
 
     status: {
@@ -24,6 +24,33 @@ const accountSchema = new mongoose.Schema(
       enum: ["active", "inactive"],
       default: "active",
     },
+
+    /* ================= PREMIUM SETTINGS ================= */
+
+    invoicePrefix: {
+      type: String,
+      default: "INV", // Starter default
+    },
+
+    upiId: {
+      type: String,
+      default: "",
+    },
+      upiQrImage: {
+       type: String, // store image URL or base64
+       default: "",
+     },
+
+
+    subscriptionEnd: {
+      type: Date,
+    },
+
+    isPaymentVerified: {
+      type: Boolean,
+      default: false,
+    },
+
   },
   { timestamps: true }
 );
