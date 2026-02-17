@@ -161,14 +161,23 @@ export const getLowStockItems = async (req, res) => {
       .sort({ stock: 1 })
       .select("name stock unit");
 
+    // res.json(
+    //   products.map((product) => ({
+    //     id: product._id,
+    //     name: product.name,
+    //     quantity: product.stock,
+    //     unit: product.unit,
+    //   }))
+    // );
     res.json(
-      products.map((product) => ({
-        id: product._id,
-        name: product.name,
-        quantity: product.stock,
-        unit: product.unit,
-      }))
-    );
+  products.map((product) => ({
+    _id: product._id,   // ✅ FIXED
+    name: product.name,
+    quantity: product.stock,
+    unit: product.unit,
+  }))
+);
+
   } catch (error) {
     console.error("Low stock error:", error);
     res.status(500).json({
