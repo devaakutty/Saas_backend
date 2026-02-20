@@ -1,11 +1,11 @@
 import Invoice from "../models/Invoice.js";
 import Product from "../models/Product.js";
 import Account from "../models/Account.js";
+import User from "../models/User.js"; // ✅ ADD THIS
 import { PLAN_CONFIG } from "../planConfig.js";
 import PDFDocument from "pdfkit";
 
-
-//* =====================================================
+//createinvoice
 export const createInvoice = async (req, res) => {
   try {
     const user = req.user;
@@ -93,7 +93,7 @@ export const createInvoice = async (req, res) => {
     }
 
     /* =====================================================
-       4️⃣ DEDUCT STOCK (AFTER VALIDATION)
+       4️⃣ DEDUCT STOCK
     ===================================================== */
 
     for (const item of items) {
@@ -103,41 +103,20 @@ export const createInvoice = async (req, res) => {
     }
 
     /* =====================================================
-       5️⃣ AUTO INVOICE NUMBER
+       5️⃣ GENERATE DATE-BASED INVOICE NUMBER
     ===================================================== */
 
-    // const now = new Date();
-    // const day = String(now.getDate()).padStart(2, "0");
-    // const month = String(now.getMonth() + 1).padStart(2, "0");
-    // const year = String(now.getFullYear()).slice(-2);
-
-    // const datePart = `${day}${month}${year}`;
-    // const prefix = "MIA";
-
-    // const startOfDay = new Date();
-    // startOfDay.setHours(0, 0, 0, 0);
-
-    // const endOfDay = new Date();
-    // endOfDay.setHours(23, 59, 59, 999);
-
-    // const todayCount = await Invoice.countDocuments({
-    //   accountId: user.accountId,
-    //   createdAt: { $gte: startOfDay, $lte: endOfDay },
-    // });
-
-    // const sequence = String(todayCount + 1).padStart(3, "0");
-    // const invoiceNo = `${prefix}-${datePart}-${sequence}`;
-
     const now = new Date();
+
     const day = String(now.getDate()).padStart(2, "0");
     const month = String(now.getMonth() + 1).padStart(2, "0");
     const year = String(now.getFullYear()).slice(-2);
 
     const datePart = `${day}${month}${year}`;
 
-    // 🔥 USE ACCOUNT PREFIX
     const prefix = account.invoicePrefix || "INV";
 
+    // Get today's invoices only
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
 
@@ -156,6 +135,7 @@ export const createInvoice = async (req, res) => {
     /* =====================================================
        6️⃣ CREATE INVOICE
     ===================================================== */
+
     const invoice = await Invoice.create({
       invoiceNo,
       customerId,
@@ -163,7 +143,7 @@ export const createInvoice = async (req, res) => {
       total,
       status: status || "PAID",
       payment,
-      createdBy: user.id, // ✅ FIXED
+      createdBy: user.id,
       accountId: user.accountId,
     });
 
@@ -180,7 +160,6 @@ export const createInvoice = async (req, res) => {
     });
   }
 };
-
 //* =====================================================
 export const getInvoices = async (req, res) => {
   try {
@@ -191,21 +170,22 @@ export const getInvoices = async (req, res) => {
     }
 
     const invoices = await Invoice.find({
-      accountId: req.user.accountId, // ✅ FIXED
+      accountId: req.user.accountId,
     })
-      .populate("customerId", "name")
+      .populate("customerId", "name phone")
       .sort({ createdAt: -1 });
 
     const formatted = invoices.map((inv) => ({
-      id: inv._id,
+      id: inv._id.toString(),
       invoiceNo: inv.invoiceNo,
       total: inv.total,
       status: inv.status,
       createdAt: inv.createdAt,
       customer: inv.customerId
         ? {
-            id: inv.customerId._id,
+            id: inv.customerId._id.toString(),
             name: inv.customerId.name,
+            phone: inv.customerId.phone || "",
           }
         : null,
     }));
@@ -219,7 +199,6 @@ export const getInvoices = async (req, res) => {
     });
   }
 };
-
 /* =====================================================
    GET INVOICE BY ID
 ===================================================== */
@@ -332,6 +311,29 @@ export const markInvoiceAsPaid = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+/* =====================================================
+   GET LAST 5 INVOICES
+===================================================== */
+export const getLastFiveInvoices = async (req, res) => {
+  try {
+    if (!req.user?.accountId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const invoices = await Invoice.find({
+      accountId: req.user.accountId,
+    })
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .select("_id invoiceNo createdAt status total"); // 👈 ADD status (and total if needed)
+
+    res.json(invoices);
+
+  } catch (error) {
+    res.status(500).json({ message: "Failed to fetch invoices" });
+  }
+};
 //* =====================================================
 //   DOWNLOAD INVOICE PDF
 //===================================================== */  
@@ -343,34 +345,41 @@ export const downloadInvoicePdf = async (req, res) => {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
+    /* ================= GET FULL USER ================= */
+    // const user = await User.findById(req.user.accountId);
+      const user = await User.findById(req.user.id);
+
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
     /* ================= FIND INVOICE ================= */
     const invoice = await Invoice.findOne({
       _id: req.params.id,
-      accountId: req.user.accountId, // ✅ Correct filter
+      accountId: req.user.accountId,
     }).populate("customerId", "name phone");
 
     if (!invoice) {
       return res.status(404).json({ message: "Invoice not found" });
     }
 
+    /* ================= CALCULATIONS ================= */
     const items = invoice.items || [];
 
     const subTotal = items.reduce(
-      (sum, i) => sum + Number(i.amount || 0),
+      (sum, item) => sum + Number(item.amount || 0),
       0
     );
 
     const gst = subTotal * 0.18;
     const grandTotal = subTotal + gst;
 
-    /* ================= PDF ================= */
-
+    /* ================= PDF SETUP ================= */
     const doc = new PDFDocument({
       size: [300, 700],
       margins: { top: 20, left: 20, right: 20, bottom: 20 },
     });
 
-    // ✅ Set headers BEFORE pipe
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
       "Content-Disposition",
@@ -379,41 +388,37 @@ export const downloadInvoicePdf = async (req, res) => {
 
     doc.pipe(res);
 
-      /* ===== HEADER ===== */
-      doc.rect(0, 0, 300, 70).fill("#111");
+    /* ================= HEADER ================= */
+    doc.rect(0, 0, 300, 70).fill("#111");
 
-      doc
-        .fillColor("white")
-        .fontSize(20)
-        .font("Helvetica-Bold")
-        .text(req.user.company || "Your Company", 0, 22, { align: "center" });
+doc.rect(0, 0, 300, 70).fill("#111");
 
-      doc
-        .fontSize(9)
-        .font("Helvetica")
-        .text(req.user.address || "", { align: "center" })
-        .text(
-          `Phone: ${req.user.phone || ""}  GST: ${req.user.gstNumber || ""}`,
-          { align: "center" }
-        );
+    doc
+      .fillColor("white")
+      .fontSize(20)
+      .font("Helvetica-Bold")
+      .text(user.company || "Your Company", 0, 22, { align: "center" });
 
-      doc.moveDown(3).fillColor("black");
+    doc
+      .fontSize(9)
+      .font("Helvetica")
+      .text(user.address || "", { align: "center" })
+      .text(
+        `Phone: ${user.phone || ""}  GST: ${user.gstNumber || ""}`,
+        { align: "center" }
+      );
 
-    doc.moveDown();
+    doc.moveDown(3).fillColor("black");
 
-    /* ===== META ===== */
+    /* ================= META ================= */
     doc.fontSize(9);
-    doc.text(`INV: #${invoice.invoiceNo}`);
-    doc.text(
-      `DATE: ${new Date(invoice.createdAt).toLocaleDateString()}`
-    );
-    doc.text(
-      `CUSTOMER: ${invoice.customerId?.name || "-"}`
-    );
+    doc.text(`INV: ${invoice.invoiceNo}`);
+    doc.text(`DATE: ${new Date(invoice.createdAt).toLocaleDateString()}`);
+    doc.text(`CUSTOMER: ${invoice.customerId?.name || "-"}`);
 
     doc.moveDown();
 
-    /* ===== TABLE HEADER ===== */
+    /* ================= TABLE HEADER ================= */
     const startX = 20;
     let y = doc.y;
 
@@ -426,14 +431,12 @@ export const downloadInvoicePdf = async (req, res) => {
     y += 10;
     doc.moveTo(startX, y).lineTo(280, y).stroke();
 
-    /* ===== ITEMS ===== */
+    /* ================= ITEMS ================= */
     doc.font("Helvetica").fontSize(9);
     y += 6;
 
     items.forEach((item) => {
-      doc.text(item.productName || "-", startX, y, {
-        width: 120,
-      });
+      doc.text(item.productName || "-", startX, y, { width: 120 });
       doc.text(Number(item.rate || 0).toFixed(2), 150, y, {
         width: 40,
         align: "right",
@@ -452,9 +455,8 @@ export const downloadInvoicePdf = async (req, res) => {
     y += 8;
     doc.moveTo(startX, y).lineTo(280, y).stroke();
 
-    /* ===== TOTALS ===== */
+    /* ================= TOTALS ================= */
     y += 10;
-    doc.fontSize(9);
 
     doc.text("SUBTOTAL", 150, y, { width: 70 });
     doc.text(subTotal.toFixed(2), 230, y, {
@@ -469,7 +471,7 @@ export const downloadInvoicePdf = async (req, res) => {
       align: "right",
     });
 
-    /* ===== GRAND TOTAL ===== */
+    /* ================= GRAND TOTAL ================= */
     y += 18;
     doc.rect(140, y, 140, 26).fill("#111");
 
@@ -496,4 +498,3 @@ export const downloadInvoicePdf = async (req, res) => {
     }
   }
 };
-

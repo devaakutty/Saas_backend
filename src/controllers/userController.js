@@ -16,8 +16,8 @@ const buildUserResponse = (user) => {
     role: user.role,
     plan: planKey,
     isPaymentVerified:
-      user.accountId?.isPaymentVerified ?? planKey === "starter",
-
+    user.accountId?.isPaymentVerified ?? planKey === "starter",
+    
     userLimit: plan?.userLimit || 1,
     invoiceLimit: plan?.invoiceLimit || 5,
 
